@@ -2,3 +2,4 @@ data/
 raw_data/
 scripts/quota_check.py
 init_kernel.py
+.DS_Store
