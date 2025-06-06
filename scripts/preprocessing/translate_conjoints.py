@@ -36,21 +36,15 @@ def apply_mapping(df, mapping_dict, column_pattern=None):
     
     return df
 
-def reshape_conjoint_to_long(df, respondent_id_col = None):
+def reshape_conjoint_to_long(df, respondent_id_col = None, country = "CH"):
     """
-    Reshape randomized conjoint data into long format.
-    One row per respondent, per task, per package (p1/p2).
+    Reshape randomized conjoint data into long format with
+    one row per respondent, per task, per package (p1/p2)
     Columns are: respondent ID (optional), task, package, attr_[name]
 
     Parameters:
-    df : pd.DataFrame, Input wide-format dataframe with columns like 
-    c1_atr1_name, c1_atr1_p1, etc.
-    respondent_id_col : str or None, Optional column name for
-    respondent identifiers
-
-    Returns:
-    pd.DataFrame
-        Long-format dataframe with one row per task/package per respondent.
+    df : pd.DataFrame wide-format dataframe
+    respondent_id_col : str or None for respondent identifiers
     """
     n_rows = df.shape[0]
     name_cols = [col for col in df.columns if re.match(r"c\d+_atr\d+_name", col)]
@@ -61,51 +55,75 @@ def reshape_conjoint_to_long(df, respondent_id_col = None):
         if not match:
             continue
         task, atr = match.groups()
+        task = int(task)
+
         p1_col = f"c{task}_atr{atr}_p1"
         p2_col = f"c{task}_atr{atr}_p2"
-
         if p1_col not in df.columns or p2_col not in df.columns:
             continue
+
+        choose_col = f"{task}_conjoint_choose12"
+        plan1_col = f"{task}_conjoint_plan1"
+        plan2_col = f"{task}_conjoint_plan2"
 
         for i in range(n_rows):
             attr = df[name_col].iloc[i]
             if pd.isna(attr):
                 continue
-            row_base = {}
+
+            chosen_plan = df[choose_col].iloc[i] if choose_col in df.columns else None
+            plan1_support = df[plan1_col].iloc[i] if plan1_col in df.columns else None
+            plan2_support = df[plan2_col].iloc[i] if plan2_col in df.columns else None
+
+            if pd.isna(chosen_plan):
+                chosen_plan = None
+            if isinstance(plan1_support, str):
+                plan1_support = 1 if plan1_support == "In favor" else 0
+            if isinstance(plan2_support, str):
+                plan2_support = 1 if plan2_support == "In favor" else 0
+
+            row_base = {
+                "task": task,
+                "chosen_plan": chosen_plan
+            }
             if respondent_id_col:
                 row_base["id"] = df[respondent_id_col].iloc[i]
-            row_base["task"] = int(task)
 
-            # One row per package
+            # Package 1
             long_data.append({
                 **row_base,
                 "package": "1",
-                f"attr_{attr}": df[p1_col].iloc[i]
+                f"attr_{attr}": df[p1_col].iloc[i],
+                "chosen": 1 if chosen_plan == "Plan 1" else 0,
+                "supported": plan1_support
             })
+
+            # Package 2
             long_data.append({
                 **row_base,
                 "package": "2",
-                f"attr_{attr}": df[p2_col].iloc[i]
+                f"attr_{attr}": df[p2_col].iloc[i],
+                "chosen": 1 if chosen_plan == "Plan 2" else 0,
+                "supported": plan2_support
             })
 
-    # Combine and pivot to wide-format attributes per row
     long_df = pd.DataFrame(long_data)
 
-    # Group and pivot attributes into columns
+    if long_df.empty:
+        print("Warning: No rows created. Check for missing attribute columns.")
+        return long_df
+
     index_cols = ["task", "package"]
     if respondent_id_col:
-        index_cols = ["id"] + index_cols
+        index_cols.insert(0, "id")
 
-    final_df = long_df.pivot_table(
-        index=index_cols,
-        aggfunc="first"
-    ).reset_index()
+    long_df = long_df.groupby(["id", "task", "package"], as_index=False).first()
 
-    # Flatten multiindex columns if any
-    final_df.columns.name = None
-    final_df = final_df.rename_axis(columns=None)
+    attr_cols = [col for col in long_df.columns if col.startswith("attr_")]
+    other_cols = [col for col in long_df.columns if not col.startswith("attr_")]
+    long_df = long_df[other_cols + attr_cols]
 
-    return final_df
+    return long_df
 
 # %% translate attribute names
 

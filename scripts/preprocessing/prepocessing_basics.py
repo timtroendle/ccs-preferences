@@ -1,4 +1,5 @@
 import pandas as pd
+import re
 
 
 # %% import data
@@ -40,19 +41,34 @@ for country, df in dataframes.items():
 # %% fix typos and delete empty columns
 
 for country, df in dataframes.items():
-    cols_to_drop = [col for col in df.columns if col.startswith("Recipient")]
+    cols_to_drop = [
+        col for col in df.columns
+        if col.startswith("Recipient")
+        or col.startswith("Location")
+        or col.startswith("Unnamed")
+        or col == "IPAddress"
+    ]
     dataframes[country] = df.drop(columns=cols_to_drop)
 
-# dataframes["US"]["personal_income"] = dataframes["US"]["personal_income"].replace("15k_35k", "15k_25k")
-# dataframes["CH"] = dataframes["CH"].rename(columns={"recent_flights": "flying_recent_number"})
-# dataframes["CN"] = dataframes["CN"].rename(columns={"recent_flights": "flying_recent_number"})
+def fix_conjoint_column_names(df):
+    new_columns = {}
 
-# %% add response IDs and other coolumns
+    for col in df.columns:
+        match = re.match(r"^(\d+)(_conjoint_.*)", col)
+        if match:
+            old_task_num, rest = match.groups()
+            new_task_num = int(old_task_num) - 5
+            if new_task_num > 0:
+                new_col_name = f"{new_task_num}{rest}"
+                new_columns[col] = new_col_name
 
-# get the total number of rows across all dataframes
+    return df.rename(columns=new_columns)
+
+dataframes["CH"] = fix_conjoint_column_names(dataframes["CH"])
+
+# %% add response IDs and other columns
+
 total_rows = sum(len(df) for df in dataframes.values())
-
-# initialize an ID counter
 id_counter = 1
 
 for country, df in dataframes.items():
