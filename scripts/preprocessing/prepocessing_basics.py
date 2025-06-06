@@ -47,6 +47,7 @@ for country, df in dataframes.items():
         or col.startswith("Location")
         or col.startswith("Unnamed")
         or col == "IPAddress"
+        or col == "ExternalReference"
     ]
     dataframes[country] = df.drop(columns=cols_to_drop)
 
@@ -81,8 +82,8 @@ cn_df = dataframes["CN"]
 
 # %% save clean data
 
-ch_df.to_csv("data/data_clean_untranslated_ch.csv")
-cn_df.to_csv("data/data_clean_untranslated_cn.csv")
+cn_df.to_csv("data/data_untranslated_cn.csv")
+ch_df.to_csv("data/data_untranslated_ch.csv")
 
 
 # %%

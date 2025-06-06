@@ -3,8 +3,8 @@ import re
 
 # %% 
 
-ch_df = pd.read_csv("data/data_clean_untranslated_ch.csv")
-cn_df = pd.read_csv("data/data_clean_untranslated_cn.csv")
+ch_df = pd.read_csv("data/data_untranslated_ch.csv")
+cn_df = pd.read_csv("data/data_untranslated_cn.csv")
 
 # %% 
 def apply_mapping(df, mapping_dict, column_pattern=None):
@@ -167,26 +167,144 @@ attr_names_dict = {
 ch_df = apply_mapping(ch_df, attr_names_dict, column_pattern='name')
 cn_df = apply_mapping(cn_df, attr_names_dict, column_pattern='name')
 
-# %% restructure data
+# %% restructure data FOR TESTING DELETE LATER
 
+#TODO add the opposed to both columns to long_df as part of restructuring
 ch_df_long = reshape_conjoint_to_long(ch_df, respondent_id_col = "id")
 cn_df_long = reshape_conjoint_to_long(cn_df, respondent_id_col = "id")
 
-# %% 
+# %% restructure data
 
 dfs = [ch_df, cn_df]
 long_dfs = []
 
 for df in dfs:
-    df_long = reshape_conjoint_to_long(df, respondent_id_col = "id")
-
-    used_cols = [col for col in df.columns if re.match(r"c\d+_atr\d+_(name|p1|p2)", col)]
-    meta_cols = [col for col in df.columns if col not in used_cols]
+    df_long = reshape_conjoint_to_long(df, respondent_id_col="id")
     
-    df_meta = df[meta_cols].drop_duplicates()
-    df_long = df_long.merge(df_meta, on = "id", how = "left")
+    used_cols = [col for col in df.columns if re.match(r"c\d+_atr\d+_(name|p1|p2)", col)]
+    conjoint_cols = [col for col in df.columns if "_conjoint_" in col]
+    meta_cols = [col for col in df.columns if col not in used_cols + conjoint_cols]
+    
+    cols_to_keep = meta_cols
+    if "id" not in cols_to_keep:
+        cols_to_keep.append("id")
+    
+    df_meta = df[cols_to_keep].drop_duplicates()
+    
+    df_long = df_long.merge(df_meta, on="id", how="left")
     long_dfs.append(df_long)
+
+
+# %% replace repeated value before translation
+
+ch_long = long_dfs[0]
+cn_long = long_dfs[1]
+
+cn_long['attr_vicinity'] = cn_long['attr_vicinity'].replace({'其他国家': '中国境外'})
+ch_long['attr_vicinity'] = ch_long['attr_vicinity'].replace({
+    'anderen Ländern': 'einem anderen Land',
+    'other countries': 'another country'
+})
+
+
 
 # %% translate attribute levels
 
+attr_levels_dict = {
+    # vicinity
+    "einem anderen Land": "abroad",
+    "autres pays": "abroad",
+    "another country": "abroad",
+    "中国境外": "abroad",
 
+    "einem anderen Kanton": "another region",
+    "autres cantons": "another region",
+    "other cantons": "another region",
+    "其他省": "another region",
+
+    "ihrem Kanton": "your region",
+    "votre canton": "your region",
+    "your canton": "your region",
+    "您的省": "your region",
+
+    "ihrer Gemeinde": "your municipality",
+    "votre commune": "your municipality",
+    "your municipality": "your municipality",
+    "您的市": "your municipality",
+
+    # reason
+    "in der Nähe der Emissionsquelle liegt": "close to source",
+    "est proche de la source d'émission": "close to source",
+    "is close to the emission source": "close to source",
+    "靠近排放源": "close to source",
+
+    "geringere Kosten als andere Standorte verursacht": "cost-efficient",
+    "a un coût inférieur à d'autres lieux": "cost-efficient",
+    "has lower cost than other locations": "cost-efficient",
+    "比其他地方成本低": "cost-efficient",
+
+    "von dicht besiedelten Gebieten entfernt liegt": "sparsely-populated",
+    "est éloigné des zones habitées": "sparsely-populated",
+    "is distant from populated areas": "sparsely-populated",
+    "远离人口密集区": "sparsely-populated",
+    
+    # source
+    "der Schweiz": "domestic",
+    "de Suisse": "domestic",
+    "Switzerland": "domestic",
+    "中国": "domestic",
+
+    "anderen Ländern": "foreign",
+    "d’autres pays": "foreign",
+    "other countries": "foreign",
+    "其他国家": "foreign",
+
+    # purpose
+    "die Reduzierung der Emissionen in der Schweiz": "reduction of domestic emissions",
+    "de réduire les émissions de dioxyde de carbone en Suisse": "reduction of domestic emissions",
+    "reducing Switzerland emissions": "reduction of domestic emissions",
+    "减少中国二氧化碳排放": "reduction of domestic emissions",
+
+    "die Speicherung von Emissionen zu Profitzwecken": "storing emissions for profit",
+    "de stocker les émissions pour générer un profit": "storing emissions for profit",
+    "storing emissions for profit": "storing emissions for profit",
+    "通过储存二氧化碳获利": "storing emissions for profit",
+    
+    # costs
+    "die verschmutzenden Industrie": "polluting industry",
+    "les industries polluantes": "polluting industry",
+    "polluting industry": "polluting industry",
+    "污染企业": "polluting industry",
+
+    "die Allgemeinheit": "taxpayer",
+    "tout le monde": "taxpayer",
+    "taxpayers": "taxpayer",
+    "所有人": "taxpayer",
+
+    # engagement
+    "über die Genehmigung oder Ablehnung des Speicherprojekts abstimmen": "vote",
+    "voter sur la décision d'approuver ou de rejeter le projet de stockage": "vote",
+    "vote on the decision to approve or reject the storage project": "vote",
+    "可以对批准或反对存储项目的决定进行表决": "vote",
+
+    "konsultiert, um die Gestaltung des Speicherprojekts mitzubestimmen.": "consult",
+    "être consulté pour contribuer à la conception du projet de stockage": "consult",
+    "be consulted to help shape the storage project’s design": "consult",
+    "接受咨询可以共同制定存储项目的设计": "consult",
+
+    "nur Informationen über die Auswirkungen des Projekts erhalten, aber nicht aktiv an der Entscheidungsfindung teilnehmen können": "inform",
+    "recevoir uniquement des informations sur les impacts du projet, mais ne pas participer activement à la prise de décision": "inform",
+    "only receive information about the project impacts, but cannot actively participate in decision-making": "inform",
+    "仅接收有关项目影响的信息，但不能积极参与决策": "inform"
+}
+
+ch_long = apply_mapping(ch_long, attr_levels_dict, column_pattern='attr')
+cn_long = apply_mapping(cn_long, attr_levels_dict, column_pattern='attr')
+
+# %%
+
+ch_df.to_csv("data/data_translated_ch.csv")
+cn_df.to_csv("data/data_translated_cn.csv")
+
+
+# %%
