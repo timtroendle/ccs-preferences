@@ -109,6 +109,14 @@ def reshape_conjoint_to_long(df, respondent_id_col = None, country = "CH"):
 
     long_df = pd.DataFrame(long_data)
 
+    if "attr_source" in long_df.columns or "attr_purpose" in long_df.columns:
+        long_df["attr_source_purpose"] = long_df["attr_source"].combine_first(long_df["attr_purpose"])
+        long_df["framing"] = None
+        long_df.loc[long_df["attr_source"].notna(), "framing"] = "source"
+        long_df.loc[long_df["attr_purpose"].notna(), "framing"] = "purpose"
+
+        long_df = long_df.drop(columns=["attr_source", "attr_purpose"])
+
     if long_df.empty:
         print("Warning: No rows created. Check for missing attribute columns.")
         return long_df
@@ -249,27 +257,43 @@ attr_levels_dict = {
     "远离人口密集区": "sparsely-populated",
     
     # source
-    "der Schweiz": "domestic",
-    "de Suisse": "domestic",
-    "Switzerland": "domestic",
-    "中国": "domestic",
+    "der Schweiz": "domestic / reduction",
+    "de Suisse": "domestic / reduction",
+    "Switzerland": "domestic / reduction",
+    "中国": "domestic / reduction",
 
-    "anderen Ländern": "foreign",
-    "d’autres pays": "foreign",
-    "other countries": "foreign",
-    "其他国家": "foreign",
+    "anderen Ländern": "foreign / profit",
+    "d’autres pays": "foreign / profit",
+    "other countries": "foreign / profit",
+    "其他国家": "foreign / profit",
 
     # purpose
-    "die Reduzierung der Emissionen in der Schweiz": "reduction of domestic emissions",
-    "de réduire les émissions de dioxyde de carbone en Suisse": "reduction of domestic emissions",
-    "reducing Switzerland emissions": "reduction of domestic emissions",
-    "减少中国二氧化碳排放": "reduction of domestic emissions",
+    "die Reduzierung der Emissionen in der Schweiz": "domestic / reduction",
+    "de réduire les émissions de dioxyde de carbone en Suisse": "domestic / reduction",
+    "reducing Switzerland emissions": "domestic / reduction",
+    "减少中国二氧化碳排放": "domestic / reduction",
 
-    "die Speicherung von Emissionen zu Profitzwecken": "storing emissions for profit",
-    "de stocker les émissions pour générer un profit": "storing emissions for profit",
-    "storing emissions for profit": "storing emissions for profit",
-    "通过储存二氧化碳获利": "storing emissions for profit",
+    "die Speicherung von Emissionen zu Profitzwecken": "foreign / profit",
+    "de stocker les émissions pour générer un profit": "foreign / profit",
+    "storing emissions for profit": "foreign / profit",
+    "通过储存二氧化碳获利": "foreign / profit",
     
+    # industry
+    "Müllverbrennungsanlagen": "NETs",
+    "usine d'incinération des déchets": "NETs",
+    "waste-incineration plant": "NETs",
+    "垃圾焚烧厂": "NETs",
+
+    "Zement-, Stahl- oder Aluminiumwerken": "hard-to-abate",
+    "cimenterie, aciérie ou aluminerie": "hard-to-abate",
+    "cement,steel,or aluminum plant": "hard-to-abate",
+    "水泥厂、钢厂或铝厂": "hard-to-abate",
+
+    "Gasbefeuerten Kraftwerken": "fossil fuels",
+    "centrale électrique au gaz": "fossil fuels",
+    "gas-fired power plant": "fossil fuels",
+    "燃气发电厂": "fossil fuels",
+
     # costs
     "die verschmutzenden Industrie": "polluting industry",
     "les industries polluantes": "polluting industry",
@@ -303,8 +327,7 @@ cn_long = apply_mapping(cn_long, attr_levels_dict, column_pattern='attr')
 
 # %%
 
-ch_long.to_csv("data/data_translated_ch.csv")
-cn_long.to_csv("data/data_translated_cn.csv")
-
+ch_long.to_csv("data/data_translated_ch.csv", index = False)
+cn_long.to_csv("data/data_translated_cn.csv", index = False)# %%
 
 # %%

@@ -38,7 +38,7 @@ for country, df in dataframes.items():
     # update the dataframe in the dictionary
     dataframes[country] = df
 
-# %% fix typos and delete empty columns
+# %% fix typos and datatypes, delete empty columns
 
 for country, df in dataframes.items():
     cols_to_drop = [
@@ -50,6 +50,11 @@ for country, df in dataframes.items():
         or col == "ExternalReference"
     ]
     dataframes[country] = df.drop(columns=cols_to_drop)
+
+    if "education_year" in df.columns:
+        df["education_year"] = pd.to_numeric(df["education_year"], errors="coerce")
+
+    dataframes[country] = df
 
 def fix_conjoint_column_names(df):
     new_columns = {}
