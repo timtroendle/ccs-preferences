@@ -169,7 +169,7 @@ cn_df = apply_mapping(cn_df, attr_names_dict, column_pattern='name')
 
 # %% restructure data FOR TESTING DELETE LATER
 
-#TODO add the opposed to both columns to long_df as part of restructuring
+#TODO add the two opposed to both plans columns to long_df as part of restructuring
 ch_df_long = reshape_conjoint_to_long(ch_df, respondent_id_col = "id")
 cn_df_long = reshape_conjoint_to_long(cn_df, respondent_id_col = "id")
 
@@ -303,8 +303,8 @@ cn_long = apply_mapping(cn_long, attr_levels_dict, column_pattern='attr')
 
 # %%
 
-ch_df.to_csv("data/data_translated_ch.csv")
-cn_df.to_csv("data/data_translated_cn.csv")
+ch_long.to_csv("data/data_translated_ch.csv")
+cn_long.to_csv("data/data_translated_cn.csv")
 
 
 # %%
