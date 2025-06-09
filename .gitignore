@@ -1,5 +1,6 @@
 data/
 raw_data/
+output/
 scripts/quota_check.py
 init_kernel.py
 .DS_Store
