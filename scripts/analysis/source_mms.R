@@ -4,9 +4,6 @@ library(readr)
 library(here)
 library(cregg)
 library(ggplot2)
-library(patchwork)
-library(grid)
-library(Matrix)
 library(viridis)
 
 main_text_size <- 14
