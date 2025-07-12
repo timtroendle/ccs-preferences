@@ -57,10 +57,10 @@ df_values$galtan_bin <- cut(
   df_values$galtan,
   breaks = quantile(
     df_values$galtan,
-    probs = c(0, 0.5, 1),
+    probs = c(0, 0.33, 0.67, 1),
     na.rm = TRUE
   ),
-  labels = c("Alternative", "Conservative"),
+  labels = c("Alternative", "Neither", "Conservative"),
   include.lowest = TRUE
 )
 
@@ -88,26 +88,34 @@ df <- df[!is.na(df$ecol_bin), ]
 
 mm_lreco <- cj(
   df,
-  supported ~ attr_source_purpose,
+  chosen ~ attr_industry,
   id = ~ id,
   estimate = "mm",
-  by = ~ lreco_bin + country + framing
+  by = ~ lreco_bin + country + attr_source_purpose
 )
 
 mm_galtan <- cj(
   df,
-  supported ~ attr_source_purpose,
+  chosen ~ attr_industry,
   id = ~ id,
   estimate = "mm",
-  by = ~ galtan_bin + country + framing
+  by = ~ galtan_bin + country + attr_source_purpose
 )
 
 mm_ecol <- cj(
   df,
-  supported ~ attr_source_purpose,
+  chosen ~ attr_source_purpose,
   id = ~ id,
   estimate = "mm",
   by = ~ ecol_bin + country + framing
+)
+
+mm_ecol_industry <- cj(
+  df,
+  chosen ~ attr_industry,
+  id = ~ id,
+  estimate = "mm",
+  by = ~ ecol_bin + country + attr_source_purpose
 )
 
 # plot_values <- function(data, value_column, main_text_size = 14) {
@@ -141,7 +149,7 @@ mm_ecol <- cj(
 #       y = NULL,
 #       x = "Marginal means"
 #     ) +
-#     facet_wrap(~framing) +
+#     facet_wrap(~attr_source_purpose) +
 #     theme_classic() +
 #     theme(
 #       legend.position = "right",
@@ -181,12 +189,12 @@ plot_lreco <- ggplot(
   ) +
   scale_color_viridis_d(end = 0.8) +
   scale_alpha_discrete(range = c(0.4, 1)) +
-  xlim(0.15, 0.85) +
+  # xlim(0.15, 0.85) +
   labs(
     y = NULL,
     x = "Marginal means"
   ) +
-  facet_wrap(~framing) +
+  facet_wrap(~attr_source_purpose) +
   theme_classic() +
   theme(
     legend.position = "right",
@@ -225,12 +233,12 @@ plot_galtan <- ggplot(
   ) +
   scale_color_viridis_d(end = 0.8) +
   scale_alpha_discrete(range = c(0.4, 1)) +
-  xlim(0.15, 0.85) +
+  # xlim(0.15, 0.85) +
   labs(
     y = NULL,
     x = "Marginal means"
   ) +
-  facet_wrap(~framing) +
+  facet_wrap(~attr_source_purpose) +
   theme_classic() +
   theme(
     legend.position = "right",
@@ -241,7 +249,7 @@ plot_galtan <- ggplot(
   )
 
 plot_ecol <- ggplot(
-  mm_ecol,
+  mm_ecol_industry,
   aes(
     x = estimate,
     y = level,
@@ -269,12 +277,12 @@ plot_ecol <- ggplot(
   ) +
   scale_color_viridis_d(end = 0.8) +
   scale_alpha_discrete(range = c(0.4, 1)) +
-  xlim(0.15, 0.85) +
+  # xlim(0.15, 0.85) +
   labs(
     y = NULL,
     x = "Marginal means"
   ) +
-  facet_wrap(~framing) +
+  facet_wrap(~attr_source_purpose) +
   theme_classic() +
   theme(
     legend.position = "right",

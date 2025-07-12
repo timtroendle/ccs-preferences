@@ -44,10 +44,10 @@ reversed_scale_list = [
     "galtan_1",
     "galtan_2",
     "net_zero_question",
-    "socio_ecological_2"
+    "socio_ecological_1"
 ]
 
-five_point_list = [
+five_point_reversed_list = [
     "climate_worried"
 ]
 
@@ -83,7 +83,7 @@ likert_values_five = [
 
 numerical_values_normalised = [0, 0.2, 0.4, 0.6, 0.8, 1]
 numerical_values_reversed =  [1, 0.8, 0.6, 0.4, 0.2, 0]
-numerical_values_five = [0, 0.25, 0.5, 0.75, 1]
+numerical_values_five = [1, 0.75, 0.5, 0.25, 0]
 
 values_dict = {**dict(np.array(list(zip(likert_values_value_ques, numerical_values_normalised))))}
 values_dict_reversed = {**dict(np.array(list(zip(likert_values_value_ques, numerical_values_reversed))))}
@@ -92,7 +92,7 @@ values_dict_five = {**dict(np.array(list(zip(likert_values_five, numerical_value
 def get_values_dict(column_name):
     if column_name in reversed_scale_list:
         return values_dict_reversed
-    elif column_name in five_point_list:
+    elif column_name in five_point_reversed_list:
         return values_dict_five
     else:
         return values_dict

@@ -37,7 +37,7 @@ df <- bind_rows(df_ch, df_cn) |>
 
 mm_location <- cj(
   df,
-  supported ~ attr_reason + attr_vicinity,
+  chosen ~ attr_vicinity,
   id = ~ id,
   estimate = "mm",
   by = ~ country + attr_source_purpose + framing
@@ -71,7 +71,7 @@ plot_location <- ggplot(
     position = position_dodge(width = 0.5)
   ) +
   scale_color_viridis_d(end = 0.8) +
-  xlim(0.2, 0.8) +
+  # xlim(0.2, 0.8) +
   labs(
     y = NULL,
     x = "Marginal means"
@@ -91,5 +91,5 @@ plot_location
 ggsave(
   plot = plot_location,
   here("output", "plot_source_location.png"),
-  height = 7, width = 10
+  height = 5, width = 10
 )

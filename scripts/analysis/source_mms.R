@@ -37,7 +37,7 @@ df <- bind_rows(df_ch, df_cn) |>
 
 mm_source <- cj(
   df,
-  supported ~ attr_source_purpose,
+  chosen ~ attr_source_purpose,
   id = ~id,
   estimate = "mm",
   by = ~country + framing
@@ -71,7 +71,7 @@ plot_source_framing <- ggplot(
   ) +
   facet_wrap(~framing) +
   scale_color_viridis_d(end = 0.8) +
-  xlim(0.2, 0.8) +
+  # xlim(0.2, 0.8) +
   labs(
     y = NULL,
     x = "Marginal means"
@@ -91,7 +91,7 @@ plot_source_framing
 
 mm_source_industry <- cj(
   df,
-  supported ~ attr_source_purpose,
+  chosen ~ attr_source_purpose,
   id = ~id,
   estimate = "mm",
   by = ~country + framing + attr_industry
@@ -99,7 +99,7 @@ mm_source_industry <- cj(
 
 mm_source_costs <- cj(
   df,
-  supported ~ attr_source_purpose,
+  chosen ~ attr_source_purpose,
   id = ~id,
   estimate = "mm",
   by = ~country + framing + attr_costs

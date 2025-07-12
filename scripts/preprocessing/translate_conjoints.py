@@ -175,11 +175,6 @@ attr_names_dict = {
 ch_df = apply_mapping(ch_df, attr_names_dict, column_pattern='name')
 cn_df = apply_mapping(cn_df, attr_names_dict, column_pattern='name')
 
-# %% restructure data FOR TESTING DELETE LATER
-
-#TODO add the two opposed to both plans columns to long_df as part of restructuring
-ch_df_long = reshape_conjoint_to_long(ch_df, respondent_id_col = "id")
-cn_df_long = reshape_conjoint_to_long(cn_df, respondent_id_col = "id")
 
 # %% restructure data
 
@@ -257,42 +252,42 @@ attr_levels_dict = {
     "远离人口密集区": "sparsely-populated",
     
     # source
-    "der Schweiz": "domestic / reduction",
-    "de Suisse": "domestic / reduction",
-    "Switzerland": "domestic / reduction",
-    "中国": "domestic / reduction",
+    "der Schweiz": "domestic",
+    "de Suisse": "domestic",
+    "Switzerland": "domestic",
+    "中国": "domestic",
 
-    "anderen Ländern": "foreign / profit",
-    "d’autres pays": "foreign / profit",
-    "other countries": "foreign / profit",
-    "其他国家": "foreign / profit",
+    "anderen Ländern": "foreign",
+    "d’autres pays": "foreign",
+    "other countries": "foreign",
+    "其他国家": "foreign",
 
     # purpose
-    "die Reduzierung der Emissionen in der Schweiz": "domestic / reduction",
-    "de réduire les émissions de dioxyde de carbone en Suisse": "domestic / reduction",
-    "reducing Switzerland emissions": "domestic / reduction",
-    "减少中国二氧化碳排放": "domestic / reduction",
+    "die Reduzierung der Emissionen in der Schweiz": "domestic",
+    "de réduire les émissions de dioxyde de carbone en Suisse": "domestic",
+    "reducing Switzerland emissions": "domestic",
+    "减少中国二氧化碳排放": "domestic",
 
-    "die Speicherung von Emissionen zu Profitzwecken": "foreign / profit",
-    "de stocker les émissions pour générer un profit": "foreign / profit",
-    "storing emissions for profit": "foreign / profit",
-    "通过储存二氧化碳获利": "foreign / profit",
+    "die Speicherung von Emissionen zu Profitzwecken": "foreign",
+    "de stocker les émissions pour générer un profit": "foreign",
+    "storing emissions for profit": "foreign",
+    "通过储存二氧化碳获利": "foreign",
     
     # industry
-    "Müllverbrennungsanlagen": "NETs",
-    "usine d'incinération des déchets": "NETs",
-    "waste-incineration plant": "NETs",
-    "垃圾焚烧厂": "NETs",
+    "Müllverbrennungsanlagen": "waste incineration",
+    "usine d'incinération des déchets": "waste incineration",
+    "waste-incineration plant": "waste incineration",
+    "垃圾焚烧厂": "waste incineration",
 
-    "Zement-, Stahl- oder Aluminiumwerken": "hard-to-abate",
-    "cimenterie, aciérie ou aluminerie": "hard-to-abate",
-    "cement,steel,or aluminum plant": "hard-to-abate",
-    "水泥厂、钢厂或铝厂": "hard-to-abate",
+    "Zement-, Stahl- oder Aluminiumwerken": "metal and cement production",
+    "cimenterie, aciérie ou aluminerie": "metal and cement production",
+    "cement,steel,or aluminum plant": "metal and cement production",
+    "水泥厂、钢厂或铝厂": "metal and cement production",
 
-    "Gasbefeuerten Kraftwerken": "fossil fuels",
-    "centrale électrique au gaz": "fossil fuels",
-    "gas-fired power plant": "fossil fuels",
-    "燃气发电厂": "fossil fuels",
+    "Gasbefeuerten Kraftwerken": "gas with CCS",
+    "centrale électrique au gaz": "gas with CCS",
+    "gas-fired power plant": "gas with CCS",
+    "燃气发电厂": "gas with CCS",
 
     # costs
     "die verschmutzenden Industrie": "polluting industry",
@@ -325,9 +320,43 @@ attr_levels_dict = {
 ch_long = apply_mapping(ch_long, attr_levels_dict, column_pattern='attr')
 cn_long = apply_mapping(cn_long, attr_levels_dict, column_pattern='attr')
 
-# %%
+# %% save to file
 
 ch_long.to_csv("data/data_translated_ch.csv", index = False)
-cn_long.to_csv("data/data_translated_cn.csv", index = False)# %%
+cn_long.to_csv("data/data_translated_cn.csv", index = False)
 
-# %%
+# %% make data file for HCM
+
+values = pd.read_csv("data/data_values_ch_cn.csv")
+
+long_columns = [
+    'id', 'task', 'package', 'chosen_plan', 'chosen', 'supported',
+    'framing', 'attr_engagement', 'attr_vicinity', 'attr_industry',
+    'attr_costs', 'attr_reason', 'attr_source_purpose',
+    'age', 'gender', 'ccs_heard', 'ccs_support', 'ccs_important'
+]
+
+values_columns = [
+    'lreco_1', 'lreco_2', 'lreco_3',
+    'galtan_1', 'galtan_2', 'net_zero_question',
+    'socio_ecological_1', 'socio_ecological_2',
+    'climate_worried', 'id', 'country'
+]
+
+ch_filtered = ch_long[long_columns].copy()
+cn_filtered = cn_long[long_columns].copy()
+values_filtered = values[values_columns].copy()
+
+long_df = pd.concat([ch_filtered, cn_filtered], axis=0)
+combined_df = (
+    long_df
+    .merge(values_filtered, on='id', how='left')
+    .rename(columns={
+        'net_zero_question': 'galtan_3',
+        'climate_worried': 'socio_ecol_3'
+    })
+)
+
+# %% save data file for HCM
+
+combined_df.to_csv("data/hcm_input.csv", index = False)
