@@ -196,7 +196,7 @@ priors.prior
 priors.prior.keys()
 az.summary(priors, var_names=["beta", "gamma_lreco", "delta"])
 
-# %% run model 
+# %% run model (3 to 5 hours)
 
 # run model with MCMC with 1000 draws, 500 tune samples, and 4 chains on 6 cores
 inference_data = pm.sample(
@@ -210,6 +210,40 @@ inference_data = pm.sample(
     target_accept = 0.9
 )
 
+# %% diagnostics
+
+az.summary(inference_data, var_names=[
+    "beta",
+    "delta",
+    "gamma_lreco",
+    "gamma_galtan",
+    "gamma_socio"
+    ])
+
+az.plot_trace(inference_data, var_names=[
+    "beta",
+    "delta",
+    "gamma_lreco",
+    "gamma_galtan",
+    "gamma_socio"
+    ])
+
+az.plot_dist(inference_data, var_names=[
+    "beta",
+    "delta",
+    "gamma_lreco",
+    "gamma_galtan",
+    "gamma_socio"
+    ])
+
+az.plot_forest(inference_data, var_names=["beta"], combined=True)
+az.plot_forest(inference_data, var_names=["delta"], combined=True)
+az.plot_forest(inference_data, var_names=["gamma_lreco"], combined=True)
+az.plot_forest(inference_data, var_names=["gamma_galtan"], combined=True)
+az.plot_forest(inference_data, var_names=["gamma_socio"], combined=True)
+
 # %% save to netcdf
 
 inference_data.to_netcdf("output/inference_hybrid_choice.nc")
+
+# %%
