@@ -70,23 +70,23 @@ coords = {"level": dummies.columns.values,
 
 with pm.Model(coords=coords) as bayes_model:
     
-    # Main effect of attribute levels
+    # main effect of attribute levels
     beta = pm.Normal("beta", mu=0, sigma=2, dims="level")
 
-    # Framing-specific shift for each attribute level
+    # framing-specific shift for each attribute level
     delta = pm.Normal("delta", mu=0, sigma=1, dims="level")
     
-    # Framing (0 or 1), same for all tasks per participant
+    # framing (0 or 1), same for all tasks per participant
     f = pm.Data("f", df.loc[df.package == 1, "framing"].cat.codes.values, dims="task")
 
-    # Observed choices
+    # observed choices
     observed_choice_left = pm.Data(
         "observed_choice_left", 
         df.loc[df.package == 1, "chosen"].values, 
         dims="task"
     )
 
-    # Attribute dummies
+    # attribute dummies
     attribute_levels_left = pm.Data(
         "attribute_levels_left", 
         dummies[df.package == 1].values, 
@@ -99,11 +99,11 @@ with pm.Model(coords=coords) as bayes_model:
         dims=["task", "level"]
     )
 
-    # Compute modified coefficients depending on framing
-    # This gives beta + delta * framing per task and level
+    # compute modified coefficients depending on framing
+    # this gives beta + delta * framing per task and level
     beta_framed = beta + delta * f[:, None]
 
-    # Compute utility
+    # compute utility
     utility_left = pm.Deterministic(
         "utility_left",
         pm.math.sum(attribute_levels_left * beta_framed, axis=1),
@@ -116,14 +116,14 @@ with pm.Model(coords=coords) as bayes_model:
         dims="task"
     )
 
-    # Choice probability via logit
+    # choice probability via logit
     probability_choice_left = pm.Deterministic(
         "probability_choice_left",
         pm.math.exp(utility_left) / (pm.math.exp(utility_left) + pm.math.exp(utility_right)),
         dims="task"
     )
 
-    # Likelihood
+    # likelihood
     choice_distribution = pm.Bernoulli(
         "choice_distribution", 
         p=probability_choice_left, 
@@ -167,4 +167,6 @@ az.plot_forest(inference_data, var_names=["beta"], combined=True)
 
 # %% save to file 
 
-inference_data.to_netcdf("output/inference_data.nc")
+inference_data.to_netcdf("output/inference_basic_choice.nc")
+
+# %%

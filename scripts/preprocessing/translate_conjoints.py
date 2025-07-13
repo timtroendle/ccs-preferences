@@ -353,7 +353,7 @@ combined_df = (
     .merge(values_filtered, on='id', how='left')
     .rename(columns={
         'net_zero_question': 'galtan_3',
-        'climate_worried': 'socio_ecol_3'
+        'climate_worried': 'socio_ecological_3'
     })
 )
 

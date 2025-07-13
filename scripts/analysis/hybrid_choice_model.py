@@ -60,89 +60,156 @@ dummies = dummies.loc[:, ~dummies.columns.duplicated()]
 
 df["framing"] = df["framing"].astype("category")
 
-# create design matric to include dummies for latent variables
-X_attr = dummies.values
-latent_vars = df[["lreco", "galtan", "socio_ecol"]].values
-X = np.hstack([X_attr, latent_vars])
-
 # add dimensions
+unique_individuals = df["id"].unique()
 coords = {
-    "level": dummies.columns.values.tolist() + ["lreco", "galtan", "socio_ecol"],
-    "framing": df["framing"].cat.categories
+    "level": dummies.columns.tolist(),
+    "task": np.arange(len(df) // 2),
+    "framing": df["framing"].cat.categories,
+    "individual": unique_individuals
 }
+
+id_to_index = {id_: i for i, id_ in enumerate(unique_individuals)}
+df["individual_idx"] = df["id"].map(id_to_index)
+individual_idx = df.loc[df.package == 1, "individual_idx"].values
+
+# %% check coords
+
+print("Coords:")
+for k, v in coords.items():
+    print(f"{k}: {len(v)} items")
+
+print("\nFirst 13 individual_idx:", individual_idx[:13])
+print("Number of tasks:", len(individual_idx))
+print("Number of unique individuals:", len(unique_individuals))
 
 # %% define HCM
 
 with pm.Model(coords=coords) as hcm_model:
-    
-    #TODO (the individual dim) 1. Measurement model: Latent traits per individual
-    theta_lreco = pm.Normal("theta_lreco", mu=0, sigma=1, dims="individual")
-    theta_galtan = pm.Normal("theta_galtan", mu=0, sigma=1, dims="individual")
-    theta_socio = pm.Normal("theta_socio", mu=0, sigma=1, dims="individual")
 
-    #TODO (likert scale normalised to 0 to 1) Thresholds (assuming ordered categorical Likert scale: 6-point for most, 5-point for some)
-    # You'd adjust this per item if necessary
-    cutpoints = pm.Normal("cutpoints", mu=np.arange(5), sigma=1.0, shape=(3, 5))
+    # latent trait priors per individual
+    lreco_latent = pm.Normal("lreco_latent", mu=0, sigma=1, dims="individual")
+    galtan_latent = pm.Normal("galtan_latent", mu=0, sigma=1, dims="individual")
+    socio_ecol_latent = pm.Normal("socio_ecol_latent", mu=0, sigma=1, dims="individual")
 
-    #TODO (df_individuals) Measurement model (IRT-style)
-    for i, item in enumerate(["lreco_1", "lreco_2", "lreco_3"]):
-        pm.OrderedLogistic(f"{item}_obs", 
-                           eta=theta_lreco[df_individuals], 
-                           cutpoints=cutpoints[0],
-                           observed=df[item])
+    # noise in observed scores
+    likert_sigma = 0.1
 
-    for i, item in enumerate(["galtan_1", "galtan_2", "galtan_3"]):
-        pm.OrderedLogistic(f"{item}_obs", 
-                           eta=theta_galtan[df_individuals], 
-                           cutpoints=cutpoints[1],
-                           observed=df[item])
+    # Observed variables as continuous (normalized to 0–1)
+    pm.Normal("lreco_1", mu=lreco_latent[individual_idx], sigma=likert_sigma, 
+              observed=df.loc[df.package == 1, "lreco_1"].values)
 
-    for i, item in enumerate(["socio_ecol_1", "socio_ecol_2", "socio_ecol_3"]):
-        pm.OrderedLogistic(f"{item}_obs", 
-                           eta=theta_socio[df_individuals], 
-                           cutpoints=cutpoints[2],
-                           observed=df[item])
+    pm.Normal("lreco_2", mu=lreco_latent[individual_idx], sigma=likert_sigma, 
+              observed=df.loc[df.package == 1, "lreco_2"].values)
 
-    # 2. Choice model: Main effects
-    beta = pm.Normal("beta", mu=0, sigma=2, dims="level")
+    pm.Normal("lreco_3", mu=lreco_latent[individual_idx], sigma=likert_sigma, 
+              observed=df.loc[df.package == 1, "lreco_3"].values)
 
-    # Framing-specific shift + moderation by latent traits
-    delta = pm.Normal("delta", mu=0, sigma=1, dims="level")
-    
-    # New: moderation coefficients (one per latent trait, per level)
+    pm.Normal("galtan_1", mu=galtan_latent[individual_idx], sigma=likert_sigma, 
+              observed=df.loc[df.package == 1, "galtan_1"].values)
+
+    pm.Normal("galtan_2", mu=galtan_latent[individual_idx], sigma=likert_sigma, 
+              observed=df.loc[df.package == 1, "galtan_2"].values)
+
+    pm.Normal("galtan_3", mu=galtan_latent[individual_idx], sigma=likert_sigma, 
+              observed=df.loc[df.package == 1, "galtan_3"].values)
+
+    pm.Normal("socio_ecological_1", mu=socio_ecol_latent[individual_idx], sigma=likert_sigma, 
+              observed=df.loc[df.package == 1, "socio_ecological_1"].values)
+
+    pm.Normal("socio_ecological_2", mu=socio_ecol_latent[individual_idx], sigma=likert_sigma, 
+              observed=df.loc[df.package == 1, "socio_ecological_2"].values)
+
+    pm.Normal("socio_ecological_3", mu=socio_ecol_latent[individual_idx], sigma=likert_sigma, 
+              observed=df.loc[df.package == 1, "socio_ecological_3"].values)
+
+    # get framing codes
+    f = pm.Data("f", df.loc[df.package == 1, "framing"].cat.codes.values, dims="task")
+    f = f.astype("float32")
+
+    # observed choices
+    observed_choice_left = pm.Data(
+        "observed_choice_left", 
+        df.loc[df.package == 1, "chosen"].values, 
+        dims="task"
+    )
+
+    # attribute dummies
+    attribute_levels_left = pm.Data(
+        "attribute_levels_left", 
+        dummies[df.package == 1].values, 
+        dims=["task", "level"]
+    )
+
+    attribute_levels_right = pm.Data(
+        "attribute_levels_right", 
+        dummies[df.package == 2].values, 
+        dims=["task", "level"]
+    )
+
+    # gamma coefficients: how much each latent trait moderates framing effects
     gamma_lreco = pm.Normal("gamma_lreco", mu=0, sigma=1, dims="level")
     gamma_galtan = pm.Normal("gamma_galtan", mu=0, sigma=1, dims="level")
     gamma_socio = pm.Normal("gamma_socio", mu=0, sigma=1, dims="level")
+    
+    # choice model: main effects
+    beta = pm.Normal("beta", mu=0, sigma=2, dims="level")
 
-    #TODO (framing codes, individual id per task) Data input
-    f = pm.Data("f", framing_codes, dims="task")  # 0/1
-    individual_idx = pm.Data("individual_idx", individual_id_per_task, dims="task")
+    # framing-specific shift
+    delta = pm.Normal("delta", mu=0, sigma=1, dims="level")
 
-    # Compute framing effects modulated by latent traits
-    delta_full = (
-        delta
-        + gamma_lreco * theta_lreco[individual_idx]
-        + gamma_galtan * theta_galtan[individual_idx]
-        + gamma_socio * theta_socio[individual_idx]
+    beta_modulated = (
+        beta
+        + delta * f[:, None]
+        + gamma_lreco * lreco_latent[individual_idx][:, None]
+        + gamma_galtan * galtan_latent[individual_idx][:, None]
+        + gamma_socio * socio_ecol_latent[individual_idx][:, None]
     )
 
-    beta_framed = beta + delta_full * f[:, None]
-
-    #TODO (dot dot dots) Utility for each package
-    attribute_levels_left = pm.Data("attribute_levels_left", ..., dims = ["task", "level"])
-    attribute_levels_right = pm.Data("attribute_levels_right", ..., dims = ["task", "level"])
-
+    # get utilities
     utility_left = pm.Deterministic("utility_left", 
-        pm.math.sum(attribute_levels_left * beta_framed, axis=1), dims = "task")
+        pm.math.sum(attribute_levels_left * beta_modulated, axis=1), dims = "task")
 
     utility_right = pm.Deterministic("utility_right", 
-        pm.math.sum(attribute_levels_right * beta_framed, axis=1), dims = "task")
+        pm.math.sum(attribute_levels_right * beta_modulated, axis=1), dims = "task")
 
-    # Logit probability
+    # logit probability
     prob_choice_left = pm.Deterministic("probability_choice_left", 
         pm.math.exp(utility_left) / (pm.math.exp(utility_left) + pm.math.exp(utility_right)),
         dims="task"
     )
 
-    #TODO (observed_choice_left) Likelihood
+    # likelihood
     pm.Bernoulli("choice_distribution", p=prob_choice_left, observed = observed_choice_left)
+
+# %% get priors
+
+priors = pm.sample_prior_predictive(
+    samples = 1000, 
+    model = hcm_model, 
+    random_seed = 42, 
+)
+
+# %% check priors
+
+priors.prior
+priors.prior.keys()
+az.summary(priors, var_names=["beta", "gamma_lreco", "delta"])
+
+# %% run model 
+
+# run model with MCMC with 1000 draws, 500 tune samples, and 4 chains on 6 cores
+inference_data = pm.sample(
+    model = hcm_model, 
+    draws = 1000, 
+    tune = 500, 
+    chains = 4,
+    cores = 6, 
+    random_seed = 42, 
+    return_inferencedata = True, 
+    target_accept = 0.9
+)
+
+# %% save to netcdf
+
+inference_data.to_netcdf("output/inference_hybrid_choice.nc")
