@@ -1,6 +1,7 @@
 import pymc as pm 
 import pandas as pd
 import arviz as az
+import numpy as np
 import xarray as xr
 
 # %% pymc bug workaround
@@ -10,7 +11,7 @@ pytensor.config.cxx = '/usr/bin/clang++'
 
 # %% 
 
-df_ch = pd.read_csv("data/data_translated_ch.csv")
+df = pd.read_csv("data/hcm_input.csv")
 
 # %% define lists and translations
 
@@ -33,8 +34,6 @@ baseline_dict = {
 }
 
 # %% define dummies
-
-df = df_ch
 
 # reorder each attribute column by making it categorical with the baseline first
 for attr in attributes:
@@ -60,10 +59,14 @@ dummies = dummies[ordered_columns]
 dummies = dummies.loc[:, ~dummies.columns.duplicated()]
 
 df["framing"] = df["framing"].astype("category")
+df["country"] = df["country"].astype("category")
 
-#TODO add task dimension but doesn't yet exist in the data maybe add in the dataframe itself
-coords = {"level": dummies.columns.values, 
-          "framing": df["framing"].cat.categories}
+coords = {
+    "level": dummies.columns.values,
+    "task": np.arange(len(df) // 2),
+    "framing": df["framing"].cat.categories,
+    "country": df["country"].cat.categories
+}
 
 
 # %% define model
@@ -76,8 +79,13 @@ with pm.Model(coords=coords) as bayes_model:
     # framing-specific shift for each attribute level
     delta = pm.Normal("delta", mu=0, sigma=1, dims="level")
     
+    # country effect
+    gamma = pm.Normal("gamma", mu=0, sigma=1, dims=["country", "level"])
+    
     # framing (0 or 1), same for all tasks per participant
     f = pm.Data("f", df.loc[df.package == 1, "framing"].cat.codes.values, dims="task")
+    country_idx = df.loc[df.package == 1, "country"].cat.codes.values
+    c = pm.Data("c", country_idx, dims = "task")
 
     # observed choices
     observed_choice_left = pm.Data(
@@ -101,7 +109,8 @@ with pm.Model(coords=coords) as bayes_model:
 
     # compute modified coefficients depending on framing
     # this gives beta + delta * framing per task and level
-    beta_framed = beta + delta * f[:, None]
+    # adding country effect
+    beta_framed = beta + delta * f[:, None] + gamma[c, :]
 
     # compute utility
     utility_left = pm.Deterministic(
@@ -137,6 +146,7 @@ priors = pm.sample_prior_predictive(
     model = bayes_model, 
     random_seed = 42, 
 )
+
 # %% check priors
 
 priors.prior
@@ -160,10 +170,11 @@ inference_data = pm.sample(
 
 # %% diagnostics
 
-az.summary(inference_data, var_names=["beta", "delta"])
-az.plot_trace(inference_data, var_names=["beta", "delta"])
-az.plot_forest(inference_data, var_names=["delta"], combined=True)
+az.summary(inference_data, var_names=["beta", "delta", "gamma"])
+az.plot_trace(inference_data, var_names=["beta", "delta", "gamma"])
 az.plot_forest(inference_data, var_names=["beta"], combined=True)
+az.plot_forest(inference_data, var_names=["delta"], combined=True)
+az.plot_forest(inference_data, var_names=["gamma"], combined=True)
 
 # %% save to file 
 

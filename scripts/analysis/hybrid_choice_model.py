@@ -59,6 +59,7 @@ dummies = dummies[ordered_columns]
 dummies = dummies.loc[:, ~dummies.columns.duplicated()]
 
 df["framing"] = df["framing"].astype("category")
+df["country"] = df["country"].astype("category")
 
 # add dimensions
 unique_individuals = df["id"].unique()
@@ -66,6 +67,7 @@ coords = {
     "level": dummies.columns.tolist(),
     "task": np.arange(len(df) // 2),
     "framing": df["framing"].cat.categories,
+    "country": df["country"].cat.categories,
     "individual": unique_individuals
 }
 
@@ -123,9 +125,11 @@ with pm.Model(coords=coords) as hcm_model:
     pm.Normal("socio_ecological_3", mu=socio_ecol_latent[individual_idx], sigma=likert_sigma, 
               observed=df.loc[df.package == 1, "socio_ecological_3"].values)
 
-    # get framing codes
+    # get framing and country codes
     f = pm.Data("f", df.loc[df.package == 1, "framing"].cat.codes.values, dims="task")
     f = f.astype("float32")
+    country_idx = df.loc[df.package == 1, "country"].cat.codes.values
+    c = pm.Data("c", country_idx, dims = "task")
 
     # observed choices
     observed_choice_left = pm.Data(
@@ -148,9 +152,9 @@ with pm.Model(coords=coords) as hcm_model:
     )
 
     # gamma coefficients: how much each latent trait moderates framing effects
-    gamma_lreco = pm.Normal("gamma_lreco", mu=0, sigma=1, dims="level")
-    gamma_galtan = pm.Normal("gamma_galtan", mu=0, sigma=1, dims="level")
-    gamma_socio = pm.Normal("gamma_socio", mu=0, sigma=1, dims="level")
+    theta_lreco = pm.Normal("theta_lreco", mu=0, sigma=1, dims="level")
+    theta_galtan = pm.Normal("theta_galtan", mu=0, sigma=1, dims="level")
+    theta_socio = pm.Normal("theta_socio", mu=0, sigma=1, dims="level")
     
     # choice model: main effects
     beta = pm.Normal("beta", mu=0, sigma=2, dims="level")
@@ -158,12 +162,16 @@ with pm.Model(coords=coords) as hcm_model:
     # framing-specific shift
     delta = pm.Normal("delta", mu=0, sigma=1, dims="level")
 
+    # country effect
+    gamma = pm.Normal("gamma", mu=0, sigma=1, dims=["country", "level"])
+
     beta_modulated = (
         beta
         + delta * f[:, None]
-        + gamma_lreco * lreco_latent[individual_idx][:, None]
-        + gamma_galtan * galtan_latent[individual_idx][:, None]
-        + gamma_socio * socio_ecol_latent[individual_idx][:, None]
+        + gamma[c, :]
+        + theta_lreco * lreco_latent[individual_idx][:, None]
+        + theta_galtan * galtan_latent[individual_idx][:, None]
+        + theta_socio * socio_ecol_latent[individual_idx][:, None]
     )
 
     # get utilities
@@ -194,7 +202,7 @@ priors = pm.sample_prior_predictive(
 
 priors.prior
 priors.prior.keys()
-az.summary(priors, var_names=["beta", "gamma_lreco", "delta"])
+az.summary(priors, var_names=["beta", "theta_lreco", "delta"])
 
 # %% run model (3 to 5 hours)
 
@@ -215,32 +223,32 @@ inference_data = pm.sample(
 az.summary(inference_data, var_names=[
     "beta",
     "delta",
-    "gamma_lreco",
-    "gamma_galtan",
-    "gamma_socio"
+    "theta_lreco",
+    "theta_galtan",
+    "theta_socio"
     ])
 
 az.plot_trace(inference_data, var_names=[
     "beta",
     "delta",
-    "gamma_lreco",
-    "gamma_galtan",
-    "gamma_socio"
+    "theta_lreco",
+    "theta_galtan",
+    "theta_socio"
     ])
 
 az.plot_dist(inference_data, var_names=[
     "beta",
     "delta",
-    "gamma_lreco",
-    "gamma_galtan",
-    "gamma_socio"
+    "theta_lreco",
+    "theta_galtan",
+    "theta_socio"
     ])
 
 az.plot_forest(inference_data, var_names=["beta"], combined=True)
 az.plot_forest(inference_data, var_names=["delta"], combined=True)
-az.plot_forest(inference_data, var_names=["gamma_lreco"], combined=True)
-az.plot_forest(inference_data, var_names=["gamma_galtan"], combined=True)
-az.plot_forest(inference_data, var_names=["gamma_socio"], combined=True)
+az.plot_forest(inference_data, var_names=["theta_lreco"], combined=True)
+az.plot_forest(inference_data, var_names=["theta_galtan"], combined=True)
+az.plot_forest(inference_data, var_names=["theta_socio"], combined=True)
 
 # %% save to netcdf
 
