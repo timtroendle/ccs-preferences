@@ -16,20 +16,20 @@ df = pd.read_csv("data/hcm_input.csv")
 # %% define attributes and baselines
 
 attributes = [ 
-    "attr_engagement",
+    # "attr_engagement",
     "attr_vicinity",
     "attr_industry",
     "attr_costs",
-    "attr_reason",
+    # "attr_reason",
     "attr_source_purpose"
 ]
 
 baseline_dict = {
-    "attr_engagement": "inform",
+    # "attr_engagement": "inform",
     "attr_vicinity": "abroad",
     "attr_industry": "waste incineration",
     "attr_costs": "taxpayer",
-    "attr_reason": "sparsely-populated",
+    # "attr_reason": "sparsely-populated",
     "attr_source_purpose": "domestic"
 }
 
@@ -154,7 +154,7 @@ with pm.Model(coords=coords) as hcm_model:
     # gamma coefficients: how much each latent trait moderates framing effects
     theta_lreco = pm.Normal("theta_lreco", mu=0, sigma=1, dims="level")
     theta_galtan = pm.Normal("theta_galtan", mu=0, sigma=1, dims="level")
-    theta_socio = pm.Normal("theta_socio", mu=0, sigma=1, dims="level")
+    theta_ecol = pm.Normal("theta_ecol", mu=0, sigma=1, dims="level")
     
     # choice model: main effects
     beta = pm.Normal("beta", mu=0, sigma=2, dims="level")
@@ -171,7 +171,7 @@ with pm.Model(coords=coords) as hcm_model:
         + gamma[c, :]
         + theta_lreco * lreco_latent[individual_idx][:, None]
         + theta_galtan * galtan_latent[individual_idx][:, None]
-        + theta_socio * socio_ecol_latent[individual_idx][:, None]
+        + theta_ecol * socio_ecol_latent[individual_idx][:, None]
     )
 
     # get utilities
@@ -202,7 +202,16 @@ priors = pm.sample_prior_predictive(
 
 priors.prior
 priors.prior.keys()
-az.summary(priors, var_names=["beta", "theta_lreco", "delta"])
+az.summary(
+    priors,
+    var_names=["beta", "gamma", "delta", "theta_lreco",]
+)
+
+# %% test model 
+
+with hcm_model:
+    approx = pm.fit(n=10000, method="advi")
+    trace = approx.sample(1000)
 
 # %% run model (3 to 5 hours)
 
@@ -223,32 +232,35 @@ inference_data = pm.sample(
 az.summary(inference_data, var_names=[
     "beta",
     "delta",
+    "gamma",
     "theta_lreco",
     "theta_galtan",
-    "theta_socio"
+    "theta_ecol"
     ])
 
 az.plot_trace(inference_data, var_names=[
     "beta",
     "delta",
+    "gamma",
     "theta_lreco",
     "theta_galtan",
-    "theta_socio"
+    "theta_ecol"
     ])
 
-az.plot_dist(inference_data, var_names=[
-    "beta",
-    "delta",
-    "theta_lreco",
-    "theta_galtan",
-    "theta_socio"
-    ])
+# az.plot_dist(inference_data, var_names=[
+#     "beta",
+#     "delta",
+#     "theta_lreco",
+#     "theta_galtan",
+#     "theta_ecol"
+#     ])
 
 az.plot_forest(inference_data, var_names=["beta"], combined=True)
 az.plot_forest(inference_data, var_names=["delta"], combined=True)
+az.plot_forest(inference_data, var_names=["gamma"], combined=True)
 az.plot_forest(inference_data, var_names=["theta_lreco"], combined=True)
 az.plot_forest(inference_data, var_names=["theta_galtan"], combined=True)
-az.plot_forest(inference_data, var_names=["theta_socio"], combined=True)
+az.plot_forest(inference_data, var_names=["theta_ecol"], combined=True)
 
 # %% save to netcdf
 

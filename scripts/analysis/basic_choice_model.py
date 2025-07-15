@@ -154,6 +154,12 @@ az.summary(priors, var_names = ["delta"])
 # az.plot_forest(priors, var_names=["delta"], combined=True)
 # delta_draws = priors.prior["delta"]
 
+# %% test model 
+
+with bayes_model:
+    approx = pm.fit(n=10000, method="advi")
+    trace = approx.sample(1000)
+
 # %%
 
 # run model with MCMC with 1000 draws, 500 tune samples, and 4 chains on 6 cores
